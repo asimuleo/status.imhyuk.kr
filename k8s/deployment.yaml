@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-dashboard
+  namespace: k8s-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-dashboard
+  template:
+    metadata:
+      labels:
+        app: k8s-dashboard
+    spec:
+      serviceAccountName: k8s-dashboard-sa
+      imagePullSecrets:
+        - name: ocir-secret
+      containers:
+        - name: k8s-dashboard
+          image: ap-chuncheon-1.ocir.io/[tenancy]/k8s-dashboard:latest
+          ports:
+            - containerPort: 8080
