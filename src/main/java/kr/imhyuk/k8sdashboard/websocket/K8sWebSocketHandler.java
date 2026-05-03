@@ -68,35 +68,43 @@ public class K8sWebSocketHandler extends TextWebSocketHandler {
         try {
             Map<String, Object> status = new HashMap<>();
 
-            // 노드 정보
+            // 노드 정보 - 이름 마스킹
             List<Map<String, String>> nodes = new ArrayList<>();
+            int nodeIndex = 1;
             for (V1Node node : k8sService.getNodes()) {
                 Map<String, String> nodeInfo = new HashMap<>();
-                nodeInfo.put("name", node.getMetadata().getName());
+                nodeInfo.put("name", "node-" + nodeIndex++);   // ← 마스킹
                 nodeInfo.put("status", getNodeStatus(node));
                 nodes.add(nodeInfo);
             }
             status.put("nodes", nodes);
 
-            // Pod 정보
+            // Pod 정보 - 이름 마스킹, 민감 네임스페이스 제외
             List<Map<String, String>> pods = new ArrayList<>();
             for (V1Pod pod : k8sService.getAllPods()) {
+                String namespace = pod.getMetadata().getNamespace();
+
+                // 시스템 네임스페이스 제외
+                if (isSystemNamespace(namespace)) continue;
+
                 Map<String, String> podInfo = new HashMap<>();
-                podInfo.put("name", pod.getMetadata().getName());
-                podInfo.put("namespace", pod.getMetadata().getNamespace());
+                podInfo.put("name", maskPodName(pod.getMetadata().getName()));  // ← 마스킹
+                podInfo.put("namespace", namespace);
                 podInfo.put("status", pod.getStatus().getPhase());
                 pods.add(podInfo);
             }
             status.put("pods", pods);
 
-            // 네임스페이스 정보
+            // 네임스페이스 - 시스템 네임스페이스 제외
             List<String> namespaces = new ArrayList<>();
             for (V1Namespace ns : k8sService.getNamespaces()) {
-                namespaces.add(ns.getMetadata().getName());
+                String name = ns.getMetadata().getName();
+                if (!isSystemNamespace(name)) {
+                    namespaces.add(name);
+                }
             }
             status.put("namespaces", namespaces);
 
-            // 전송
             String json = objectMapper.writeValueAsString(status);
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(json));
@@ -106,6 +114,25 @@ public class K8sWebSocketHandler extends TextWebSocketHandler {
             log.error("클러스터 상태 전송 실패 : {}", e.getMessage());
         }
     }
+
+    private boolean isSystemNamespace(String namespace) {
+        return namespace.startsWith("kube-") ||
+                namespace.equals("cert-manager") ||
+                namespace.equals("envoy-gateway-system") ||
+                namespace.equals("calico-system") ||
+                namespace.equals("tigera-operator") ||
+                namespace.equals("gateway-system");
+    }
+
+    private String maskPodName(String podName) {
+        // ex) k8s-dashboard-8477d9dbf9-7q68x → k8s-dashboard-***
+        String[] parts = podName.split("-");
+        if (parts.length > 2) {
+            return String.join("-", Arrays.copyOf(parts, parts.length - 2)) + "-***";
+        }
+        return podName;
+    }
+
 
     private String getNodeStatus(V1Node node) {
         return node.getStatus().getConditions().stream()

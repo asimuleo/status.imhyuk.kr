@@ -18,6 +18,6 @@ spec:
         - name: ocir-secret
       containers:
         - name: k8s-dashboard
-          image: ap-chuncheon-1.ocir.io/[tenancy]/k8s-dashboard:latest
+          image: ap-chuncheon-1.ocir.io/[tenancy]/k8s-dashboard:v1.0.0
           ports:
             - containerPort: 8080

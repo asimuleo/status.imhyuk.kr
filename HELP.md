@@ -44,3 +44,18 @@ kubectl get svc -n k8s-dashboard
 kubectl logs -n k8s-dashboard [pod-name]
 # 클러스터에서 Pod 재시작
 kubectl rollout restart deployment k8s-dashboard -n k8s-dashboard
+
+# v1.0.0 + latest 동시 태깅
+docker build -t ap-chuncheon-1.ocir.io/[tenancy-namespace]/k8s-dashboard:v1.0.0 \
+-t ap-chuncheon-1.ocir.io/[tenancy-namespace]/k8s-dashboard:latest .
+
+# 둘 다 푸시
+docker push ap-chuncheon-1.ocir.io/[tenancy-namespace]/k8s-dashboard:v1.0.0
+docker push ap-chuncheon-1.ocir.io/[tenancy-namespace]/k8s-dashboard:latest
+
+# 깃 태그
+git tag v1.0.0
+
+# 깃 푸시
+git push origin main
+git push origin v1.0.0
